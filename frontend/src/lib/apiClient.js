@@ -14,18 +14,35 @@ export function setCustomApiUrl(url) {
   }
 }
 
+function isCapacitorNative() {
+  try {
+    return (
+      typeof window !== 'undefined' &&
+      (window.Capacitor?.isNativePlatform?.() === true ||
+        window.Capacitor?.getPlatform?.() === 'android' ||
+        window.Capacitor?.getPlatform?.() === 'ios')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function getApiUrls() {
   const custom = getCustomApiUrl();
   const configured = import.meta.env.VITE_API_URL?.trim();
+  const isNative = isCapacitorNative();
+
+  // In Capacitor, window.location.origin is http://localhost (the webview),
+  // not the real backend — so skip it on native platforms.
   const originApi =
-    typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null'
+    !isNative && typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null'
       ? `${window.location.origin.replace(/\/+$/, '')}/api`
       : null;
 
   const rawList = [
-    ...(originApi ? [originApi] : []),
     ...(custom ? [custom.replace(/\/+$/, '') + (custom.endsWith('/api') ? '' : '/api')] : []),
     ...(configured ? [configured] : []),
+    ...(originApi ? [originApi] : []),
     'http://localhost:5000/api'
   ];
   return Array.from(new Set(rawList.filter(Boolean))).map((value) => value.replace(/\/+$/, ''));
